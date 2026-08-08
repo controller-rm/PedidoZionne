@@ -220,6 +220,22 @@
   .order-summary .line{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;}
   .order-summary .line:last-child{margin-bottom:0;font-weight:800;font-size:14px;color:var(--green-dark);}
   .order-summary .label{color:var(--muted);}
+
+  .hist-card{
+    border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff;
+  }
+  .hist-card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .hist-card .cliente{font-size:13.5px;font-weight:800;color:var(--green-dark);}
+  .hist-card .meta{font-size:11px;color:var(--muted);margin-top:2px;}
+  .hist-card .total{font-size:15px;font-weight:800;color:var(--green-dark);white-space:nowrap;}
+  .hist-card .itens-count{font-size:11.5px;color:var(--muted);margin-top:6px;}
+  .hist-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+  .hist-actions button{
+    flex:1;min-width:70px;border:1px solid var(--border);background:#fcfcfa;border-radius:8px;
+    padding:7px 4px;font-size:11px;font-weight:700;color:var(--text);cursor:pointer;
+  }
+  .hist-actions button:hover{border-color:var(--green);color:var(--green-dark);}
+  .hist-actions button.danger{color:var(--danger);}
   .hint{font-size:11px;color:var(--muted);margin-top:4px;}
 
   .toast{
@@ -239,7 +255,7 @@
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6 6h15l-1.5 9h-12z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><circle cx="9" cy="19" r="1.4" fill="#fff"/><circle cx="17" cy="19" r="1.4" fill="#fff"/><path d="M3 3h2l1 3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
         <div>
           <h1>Zionne</h1>
-          <p>Bloco de Pedido · Feira ABUP SHOW</p>
+          <p>Bloco de Pedido · Feira ABUP</p>
         </div>
       </div>
       <button class="novo-btn" onclick="novoPedido()">+ Novo</button>
@@ -255,6 +271,7 @@
     <button class="tab-btn" data-tab="produtos" onclick="showTab('produtos')">📦 Produtos</button>
     <button class="tab-btn" data-tab="carrinho" onclick="showTab('carrinho')">🧾 Carrinho <span class="badge" id="cart-badge">0</span></button>
     <button class="tab-btn" data-tab="finalizacao" onclick="showTab('finalizacao')">⚙️ Finalização</button>
+    <button class="tab-btn" data-tab="historico" onclick="showTab('historico')">📜 Histórico</button>
   </nav>
 
   <main>
@@ -401,6 +418,14 @@
       </div>
     </section>
 
+    <!-- HISTÓRICO -->
+    <section class="screen" id="tab-historico">
+      <h2 class="section-title">📜 Histórico de Pedidos</h2>
+      <div class="hint" style="margin-bottom:12px;">Salvo neste navegador/celular. Não sincroniza com outros aparelhos.</div>
+      <div id="historico-list"></div>
+      <button class="btn btn-outline btn-block" id="btn-limpar-historico" onclick="limparHistorico()" style="margin-top:14px;">🗑 Limpar todo o histórico</button>
+    </section>
+
   </main>
 </div>
 
@@ -412,7 +437,7 @@
 ===================================================== */
 const EMPRESA = {
   nome: "Zionne",
-  evento: "PEDIDO DE VENDA - FEIRA ABUP SHOW HOME - 10-14 AGOSTO/2026",
+  evento: "PEDIDO DE VENDA - FEIRA ABUP SHOW HOME - 2-5 FEVEREIRO/2026",
   instagram: "@zionne.oficial",
   telefone: "(41) 3043-0595",
   site: "zionne.com.br",
@@ -484,6 +509,7 @@ function showTab(name){
   document.querySelector(`.tab-btn[data-tab="${name}"]`).classList.add('active');
   if(name==='carrinho') renderCarrinho();
   if(name==='produtos') renderProdutos();
+  if(name==='historico') renderHistorico();
   if(name!=='produtos') stopScanner();
 }
 
@@ -987,39 +1013,123 @@ function gerarPedido(){
   document.getElementById('order-summary').classList.add('show');
   ['btn-csv','btn-pdf','btn-whats'].forEach(id=>document.getElementById(id).disabled=false);
   msgBox.innerHTML = '<div class="msg msg-ok">Pedido gerado com sucesso! Veja as opções de envio abaixo.</div>';
-  toast('Pedido gerado com sucesso!');
+
+  salvarNoHistorico(pedidoGerado);
+  toast('Pedido gerado e salvo no histórico deste celular!');
 }
 
-function tsFilename(){
-  const d = pedidoGerado.timestamp;
+function tsFilename(p = pedidoGerado){
+  const d = p.timestamp instanceof Date ? p.timestamp : new Date(p.timestamp);
   const pad = n => String(n).padStart(2,'0');
   return `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
 }
 
+/* =====================================================
+   HISTÓRICO DE PEDIDOS (localStorage — salvo neste navegador)
+===================================================== */
+const HISTORICO_KEY = 'zionne_pedidos_historico_v1';
+
+function carregarHistorico(){
+  try{
+    const raw = localStorage.getItem(HISTORICO_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    console.warn('Não foi possível ler o histórico local:', e);
+    return [];
+  }
+}
+
+function salvarNoHistorico(pedido){
+  try{
+    const historico = carregarHistorico();
+    historico.unshift({...pedido, id: Date.now() + '_' + Math.random().toString(36).slice(2,7)});
+    localStorage.setItem(HISTORICO_KEY, JSON.stringify(historico));
+  }catch(e){
+    console.warn('Não foi possível salvar no histórico local:', e);
+    toast('⚠️ Não foi possível salvar no histórico (armazenamento cheio ou bloqueado neste navegador).');
+  }
+}
+
+function excluirDoHistorico(id){
+  const historico = carregarHistorico().filter(p => p.id !== id);
+  localStorage.setItem(HISTORICO_KEY, JSON.stringify(historico));
+  renderHistorico();
+  toast('Pedido removido do histórico.');
+}
+
+function limparHistorico(){
+  if(!confirm('Tem certeza que deseja apagar TODOS os pedidos salvos neste celular? Essa ação não pode ser desfeita.')) return;
+  localStorage.removeItem(HISTORICO_KEY);
+  renderHistorico();
+  toast('Histórico apagado.');
+}
+
+function formatarDataHistorico(ts){
+  const d = ts instanceof Date ? ts : new Date(ts);
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} às ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function renderHistorico(){
+  const historico = carregarHistorico();
+  const list = document.getElementById('historico-list');
+  const btnLimpar = document.getElementById('btn-limpar-historico');
+
+  if(historico.length === 0){
+    list.innerHTML = '<div class="empty-state">Nenhum pedido salvo neste celular ainda.<br>Ao gerar um pedido na aba Finalização, ele aparece aqui.</div>';
+    btnLimpar.style.display = 'none';
+    return;
+  }
+  btnLimpar.style.display = 'block';
+
+  list.innerHTML = historico.map(p => `
+    <div class="hist-card">
+      <div class="top">
+        <div>
+          <div class="cliente">${p.dadosCliente?.razao || 'Cliente'}</div>
+          <div class="meta">${formatarDataHistorico(p.timestamp)} · CNPJ ${p.cnpj || '—'}</div>
+        </div>
+        <div class="total">${fmt(p.total)}</div>
+      </div>
+      <div class="itens-count">📦 ${p.itens.length} item(ns) no pedido</div>
+      <div class="hist-actions">
+        <button onclick="exportCSV(historicoPedido('${p.id}'))">⬇️ CSV</button>
+        <button onclick="exportPDF(historicoPedido('${p.id}'))">⬇️ PDF</button>
+        <button onclick="exportWhatsApp(historicoPedido('${p.id}'))">💬 WhatsApp</button>
+        <button class="danger" onclick="excluirDoHistorico('${p.id}')">🗑 Excluir</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function historicoPedido(id){
+  return carregarHistorico().find(p => p.id === id);
+}
+
 /* --------- CSV --------- */
-function exportCSV(){
-  if(!pedidoGerado) return;
-  const d = pedidoGerado.dadosCliente;
-  let csv = `CLIENTE;${d.razao}\nCNPJ;${pedidoGerado.cnpj}\nCOND_PAG;${pedidoGerado.condPag}\nTIPO_FRETE;${pedidoGerado.frete}\nTOTAL_PEDIDO;${pedidoGerado.total.toFixed(2)}\n\nITENS\ncodigo;descricao;qtd;preco;total\n`;
-  pedidoGerado.itens.forEach(i=>{
+function exportCSV(pedido = pedidoGerado){
+  if(!pedido) return;
+  const d = pedido.dadosCliente;
+  let csv = `CLIENTE;${d.razao}\nCNPJ;${pedido.cnpj}\nCOND_PAG;${pedido.condPag}\nTIPO_FRETE;${pedido.frete}\nTOTAL_PEDIDO;${pedido.total.toFixed(2)}\n\nITENS\ncodigo;descricao;qtd;preco;total\n`;
+  pedido.itens.forEach(i=>{
     csv += `${i.codigo};${i.descricao};${i.qtd};${i.preco.toFixed(2)};${i.total.toFixed(2)}\n`;
   });
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `PEDIDO_ZIONNE_${pedidoGerado.cnpj}_${tsFilename()}.csv`;
+  a.href = url; a.download = `PEDIDO_ZIONNE_${pedido.cnpj}_${tsFilename(pedido)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
   toast('CSV exportado.');
 }
 
 /* --------- PDF (layout igual ao app de referência) --------- */
-function exportPDF(){
-  if(!pedidoGerado) return;
+function exportPDF(pedido = pedidoGerado){
+  if(!pedido) return;
   if(!window.jspdf){ toast('Biblioteca de PDF ainda carregando, tente novamente em instantes.'); return; }
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({unit:'mm', format:'a4'});
-  const d = pedidoGerado.dadosCliente;
+  const d = pedido.dadosCliente;
   const pageWidth = pdf.internal.pageSize.getWidth();
   let y = 15;
 
@@ -1030,11 +1140,11 @@ function exportPDF(){
   pdf.setFontSize(11); pdf.text('DADOS DO CLIENTE', 15, y); y += 6;
   pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
   pdf.text(`Razão Social: ${d.razao}`, 15, y); y += 5;
-  pdf.text(`CNPJ: ${pedidoGerado.cnpj}   IE: ${pedidoGerado.ie}`, 15, y); y += 5;
-  pdf.text(`Telefone: ${pedidoGerado.telefone}   E-mail: ${pedidoGerado.email}`, 15, y); y += 5;
+  pdf.text(`CNPJ: ${pedido.cnpj}   IE: ${pedido.ie}`, 15, y); y += 5;
+  pdf.text(`Telefone: ${pedido.telefone}   E-mail: ${pedido.email}`, 15, y); y += 5;
   pdf.text(`Endereço: ${d.logradouro}, ${d.numero} - ${d.bairro} - ${d.municipio}/${d.uf} - CEP ${d.cep}`, 15, y, {maxWidth: pageWidth-30}); y += 8;
 
-  const rows = pedidoGerado.itens.map(i=>[i.codigo, i.descricao.slice(0,55), String(i.qtd), i.preco.toFixed(2), i.total.toFixed(2)]);
+  const rows = pedido.itens.map(i=>[i.codigo, i.descricao.slice(0,55), String(i.qtd), i.preco.toFixed(2), i.total.toFixed(2)]);
   pdf.autoTable({
     startY: y,
     head: [['Código','Descrição','Qtd','Unit.','Total']],
@@ -1048,27 +1158,27 @@ function exportPDF(){
   y = pdf.lastAutoTable.finalY + 6;
 
   pdf.setFontSize(9);
-  pdf.text('Subtotal:', 150, y); pdf.text(pedidoGerado.total.toFixed(2), 195, y, {align:'right'}); y += 5;
+  pdf.text('Subtotal:', 150, y); pdf.text(pedido.total.toFixed(2), 195, y, {align:'right'}); y += 5;
   pdf.text('Frete:', 150, y); pdf.text('0,00', 195, y, {align:'right'}); y += 5;
   pdf.text('Outras Desp.:', 150, y); pdf.text('0,00', 195, y, {align:'right'}); y += 5;
   pdf.setFont('helvetica','bold'); pdf.setFontSize(10);
-  pdf.text('TOTAL:', 150, y); pdf.text(pedidoGerado.total.toFixed(2), 195, y, {align:'right'}); y += 9;
+  pdf.text('TOTAL:', 150, y); pdf.text(pedido.total.toFixed(2), 195, y, {align:'right'}); y += 9;
 
   pdf.setFont('helvetica','normal'); pdf.setFontSize(9);
-  pdf.text(`Condição de Pagamento: ${pedidoGerado.condPag}`, 15, y); y += 7;
+  pdf.text(`Condição de Pagamento: ${pedido.condPag}`, 15, y); y += 7;
 
   pdf.setFont('helvetica','bold'); pdf.setFontSize(10);
   pdf.text('INFORMAÇÕES DE ENTREGA', 15, y); y += 6;
   pdf.setFont('helvetica','normal'); pdf.setFontSize(9);
-  pdf.text(`Tipo de Frete: ${pedidoGerado.frete}`, 15, y); y += 5;
-  const obsLines = pdf.splitTextToSize(`Observações: ${pedidoGerado.obs || '—'}`, pageWidth-30);
+  pdf.text(`Tipo de Frete: ${pedido.frete}`, 15, y); y += 5;
+  const obsLines = pdf.splitTextToSize(`Observações: ${pedido.obs || '—'}`, pageWidth-30);
   pdf.text(obsLines, 15, y); y += obsLines.length*5 + 4;
 
-  if(pedidoGerado.assinatura){
+  if(pedido.assinatura){
     if(y > 240) { pdf.addPage(); y = 20; }
     pdf.setFont('helvetica','bold'); pdf.setFontSize(10);
     pdf.text('ASSINATURA DO CLIENTE', 15, y); y += 4;
-    try{ pdf.addImage(pedidoGerado.assinatura, 'PNG', 15, y, 70, 28); }catch(e){}
+    try{ pdf.addImage(pedido.assinatura, 'PNG', 15, y, 70, 28); }catch(e){}
     y += 32;
     pdf.setDrawColor(180); pdf.line(15, y, 85, y); y += 4;
     pdf.setFontSize(8); pdf.setFont('helvetica','normal'); pdf.text(d.razao || 'Cliente', 15, y);
@@ -1085,15 +1195,15 @@ function exportPDF(){
     pdf.text(EMPRESA.endereco, pageWidth/2, h-4, {align:'center'});
   }
 
-  pdf.save(`PEDIDO_ZIONNE_${pedidoGerado.cnpj}_${tsFilename()}.pdf`);
+  pdf.save(`PEDIDO_ZIONNE_${pedido.cnpj}_${tsFilename(pedido)}.pdf`);
   toast('PDF gerado.');
 }
 
 /* --------- WhatsApp --------- */
-function exportWhatsApp(){
-  if(!pedidoGerado) return;
-  const d = pedidoGerado.dadosCliente;
-  const itensTxt = pedidoGerado.itens.map(i =>
+function exportWhatsApp(pedido = pedidoGerado){
+  if(!pedido) return;
+  const d = pedido.dadosCliente;
+  const itensTxt = pedido.itens.map(i =>
     `\n🔹 *${i.descricao}*\nCód: ${i.codigo}\n${i.qtd} x ${fmt(i.preco)} = *${fmt(i.total)}*\n`
   ).join('');
 
@@ -1102,32 +1212,32 @@ function exportWhatsApp(){
 ━━━━━━━━━━━━━━━━━━
 👤 *DADOS DO CLIENTE*
 Razão Social: ${d.razao}
-CNPJ: ${pedidoGerado.cnpj}
-IE: ${pedidoGerado.ie}
-Telefone: ${pedidoGerado.telefone}
-E-mail: ${pedidoGerado.email}
+CNPJ: ${pedido.cnpj}
+IE: ${pedido.ie}
+Telefone: ${pedido.telefone}
+E-mail: ${pedido.email}
 
 📍 Endereço:
 ${d.logradouro}, ${d.numero} - ${d.bairro}
 ${d.municipio}/${d.uf} - CEP ${d.cep}
 
 ━━━━━━━━━━━━━━━━━━
-🚚 *FRETE:* ${pedidoGerado.frete}
-💳 *PAGAMENTO:* ${pedidoGerado.condPag}
+🚚 *FRETE:* ${pedido.frete}
+💳 *PAGAMENTO:* ${pedido.condPag}
 
 📝 *OBSERVAÇÕES*
-${pedidoGerado.obs || '—'}
+${pedido.obs || '—'}
 
 ━━━━━━━━━━━━━━━━━━
 📦 *ITENS DO PEDIDO*
 ${itensTxt}
 ━━━━━━━━━━━━━━━━━━
-💰 *TOTAL DO PEDIDO: ${fmt(pedidoGerado.total)}*
+💰 *TOTAL DO PEDIDO: ${fmt(pedido.total)}*
 ━━━━━━━━━━━━━━━━━━
 
 Obrigado por comprar com a *${EMPRESA.nome}* 🤍`;
 
-  const telefoneLimpo = somenteDigitos(pedidoGerado.telefone);
+  const telefoneLimpo = somenteDigitos(pedido.telefone);
   if(!telefoneLimpo){ toast('Informe o telefone do cliente para enviar via WhatsApp.'); return; }
   const url = `https://wa.me/55${telefoneLimpo}?text=${encodeURIComponent(msg)}`;
   window.open(url, '_blank');

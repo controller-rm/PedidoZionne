@@ -141,28 +141,25 @@
     background:var(--green-light);padding:6px 10px;border-radius:7px;white-space:nowrap;border:none;cursor:pointer;
   }
   .list-toolbar{font-size:11.5px;color:var(--muted);margin-bottom:10px;}
-  #scanner-status .msg{margin-bottom:10px;}
-  #scanner-status .msg a{color:inherit;font-weight:800;}
 
   .scanner-panel{
-    display:none;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;
-    background:#000;position:relative;
+    display:none;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:12px;
+    background:#111;color:#fff;
   }
   .scanner-panel.show{display:block;}
-  .scanner-panel video{width:100%;display:block;max-height:260px;object-fit:cover;}
-  .scanner-close{
-    position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;border:none;
-    border-radius:50%;width:28px;height:28px;font-size:14px;cursor:pointer;
+  .scanner-title{font-size:13px;font-weight:900;margin-bottom:8px;}
+  .scanner-view{position:relative;overflow:hidden;border-radius:10px;background:#000;aspect-ratio:4/3;}
+  .scanner-panel video{width:100%;height:100%;border-radius:10px;object-fit:cover;display:block;}
+  .scanner-guide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+  .scanner-guide span{
+    display:block;width:min(62vw,250px);height:min(62vw,250px);max-width:72%;max-height:72%;
+    border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.22);
   }
-  .scanner-hint{
-    position:absolute;bottom:34px;left:0;right:0;text-align:center;color:#fff;font-size:11px;
-    background:rgba(0,0,0,.45);padding:4px;
-  }
-  .scanner-actions{
-    position:absolute;bottom:0;left:0;right:0;display:flex;gap:6px;padding:6px;
-    background:rgba(0,0,0,.55);
-  }
-  .scanner-actions .btn-small{flex:1;padding:7px 4px;font-size:11px;background:#fff;}
+  .scanner-status{font-size:12px;font-weight:800;text-align:center;margin-top:8px;color:#e9f6ed;}
+  .scanner-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .scanner-actions .btn{flex:1;min-width:96px;padding:9px 6px;font-size:12px;}
+  .scanner-panel .hint{color:#ddd;margin-top:8px;}
+
   .product-card.qr-target{
     outline:3px solid var(--gold);outline-offset:2px;
     box-shadow:0 0 0 5px rgba(224,172,43,.18),0 8px 24px rgba(18,67,42,.18);
@@ -242,7 +239,7 @@
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6 6h15l-1.5 9h-12z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><circle cx="9" cy="19" r="1.4" fill="#fff"/><circle cx="17" cy="19" r="1.4" fill="#fff"/><path d="M3 3h2l1 3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
         <div>
           <h1>Zionne</h1>
-          <p>Bloco de Pedido · Feira ABUP</p>
+          <p>Bloco de Pedido · Feira ABUP SHOW</p>
         </div>
       </div>
       <button class="novo-btn" onclick="novoPedido()">+ Novo</button>
@@ -331,20 +328,24 @@
       <div class="search-box">
         <span>🔎</span>
         <input type="text" id="search-input" placeholder="Buscar por SKU ou descrição..." oninput="onSearchChange()">
-        <button class="scanner-tag" onclick="toggleScanner()">📷 Scanner</button>
+        <button class="scanner-tag" id="scanner-btn" onclick="toggleScanner()">📷 Scanner</button>
       </div>
 
       <div class="scanner-panel" id="scanner-panel">
-        <button class="scanner-close" onclick="stopScanner()">✕</button>
-        <video id="scanner-video" playsinline autoplay muted></video>
-        <canvas id="scanner-canvas" style="display:none"></canvas>
-        <div class="scanner-hint" id="scanner-hint">Aponte a câmera para o QR Code do produto</div>
-        <div class="scanner-actions">
-          <button class="btn btn-outline btn-small" onclick="scanFrame()">Ler QR agora</button>
-          <button class="btn btn-outline btn-small" onclick="trocarCamera()">🔄 Trocar câmera</button>
+        <div class="scanner-title">📷 Leitor de QR Code</div>
+        <div class="scanner-view">
+          <video id="scanner-video" playsinline autoplay muted></video>
+          <div class="scanner-guide"><span></span></div>
         </div>
+        <canvas id="scanner-canvas" style="display:none"></canvas>
+        <div class="scanner-status" id="scanner-status">Preparando câmera...</div>
+        <div class="scanner-actions">
+          <button class="btn btn-outline" onclick="scanFrame()">Ler QR agora</button>
+          <button class="btn btn-outline" onclick="trocarCamera()">🔄 Trocar câmera</button>
+          <button class="btn btn-outline" onclick="stopScanner()">Fechar</button>
+        </div>
+        <div class="hint">O leitor permanece dentro desta página. Posicione o QR Code dentro do quadro.</div>
       </div>
-      <div id="scanner-status"></div>
 
       <div class="list-toolbar" id="list-toolbar"></div>
       <div class="product-grid" id="product-grid"></div>
@@ -411,7 +412,7 @@
 ===================================================== */
 const EMPRESA = {
   nome: "Zionne",
-  evento: "PEDIDO DE VENDA - FEIRA ABUP SHOW HOME - 2-5 FEVEREIRO/2026",
+  evento: "PEDIDO DE VENDA - FEIRA ABUP SHOW HOME - 10-14 AGOSTO/2026",
   instagram: "@zionne.oficial",
   telefone: "(41) 3043-0595",
   site: "zionne.com.br",
@@ -669,30 +670,16 @@ function addToCart(sku){
 }
 
 /* =====================================================
-   SCANNER QR — BarcodeDetector nativo + fallback jsQR
-   (câmera traseira por padrão, com opção de trocar)
+   SCANNER QR — conforme modelo de referência
+   (BarcodeDetector nativo + fallback jsQR; câmera traseira por padrão)
 ===================================================== */
-function scannerStatus(html){
-  const box = document.getElementById('scanner-status');
-  const hint = document.getElementById('scanner-hint');
-  if(hint) hint.textContent = html || 'Aponte a câmera para o QR Code do produto';
-  box.innerHTML = '';
-}
-function scannerError(html){
-  document.getElementById('scanner-status').innerHTML = `<div class="msg msg-error">${html}</div>`;
-}
-
 let scannerFacing = 'environment'; // câmera traseira por padrão
 
 async function iniciarCameraInline(){
-  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+  if(!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
     document.getElementById('scanner-panel').classList.add('show');
-    scannerError('Este navegador não permite câmera integrada. Tente em um navegador atualizado (Chrome, Safari, Edge).');
-    return false;
-  }
-  if(!window.isSecureContext){
-    document.getElementById('scanner-panel').classList.add('show');
-    scannerError('A câmera só funciona em uma página segura (HTTPS) ou aberta em <b>localhost</b>. Se você abriu este arquivo direto do computador (file://) ou por um link http:// comum, o navegador bloqueia o acesso à câmera.');
+    document.getElementById('scanner-status').textContent = 'Este navegador não permite câmera integrada.';
+    toast('Para usar o leitor dentro da página, abra o app em HTTPS ou localhost.');
     return false;
   }
   try{
@@ -706,23 +693,18 @@ async function iniciarCameraInline(){
     video.style.transform = scannerFacing === 'user' ? 'scaleX(-1)' : 'none';
     await video.play();
     document.getElementById('scanner-panel').classList.add('show');
-    scannerStatus('Leitor ativo — procurando QR Code...');
+    document.getElementById('scanner-btn').textContent = '❌ Fechar';
+    document.getElementById('scanner-status').textContent = 'Leitor ativo — procurando QR Code...';
     scanLoop();
     return true;
   }catch(err){
     scannerStream = null;
     document.getElementById('scanner-panel').classList.add('show');
     let msg = 'Não foi possível iniciar a câmera integrada.';
-    if(err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError'){
-      msg = 'Permissão de câmera negada. Libere o acesso à câmera para este site nas configurações do navegador e tente novamente.';
-    }else if(err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError'){
-      msg = 'Nenhuma câmera foi encontrada neste dispositivo.';
-    }else if(err?.name === 'NotReadableError' || err?.name === 'TrackStartError'){
-      msg = 'A câmera está sendo usada por outro aplicativo ou não pôde ser iniciada.';
-    }else if(err?.name === 'SecurityError'){
-      msg = 'O navegador bloqueou o acesso à câmera nesta página (é necessário HTTPS ou localhost).';
-    }
-    scannerError(msg);
+    if(err?.name === 'NotAllowedError') msg = 'Permissão da câmera bloqueada pelo navegador.';
+    else if(err?.name === 'NotFoundError') msg = 'Nenhuma câmera disponível foi encontrada.';
+    document.getElementById('scanner-status').textContent = msg;
+    toast(msg + ' Verifique a permissão e se o endereço usa HTTPS.');
     return false;
   }
 }
@@ -730,13 +712,13 @@ async function iniciarCameraInline(){
 async function toggleScanner(){
   if(scannerStream){ stopScanner(); return; }
   document.getElementById('scanner-panel').classList.add('show');
-  scannerStatus('Solicitando acesso à câmera traseira...');
+  document.getElementById('scanner-status').textContent = 'Solicitando acesso à câmera traseira...';
   await iniciarCameraInline();
 }
 
 async function trocarCamera(){
   scannerFacing = scannerFacing === 'environment' ? 'user' : 'environment';
-  scannerStatus(scannerFacing === 'environment' ? 'Abrindo câmera traseira...' : 'Abrindo câmera frontal...');
+  document.getElementById('scanner-status').textContent = scannerFacing === 'environment' ? 'Abrindo câmera traseira...' : 'Abrindo câmera frontal...';
   await iniciarCameraInline();
 }
 
@@ -746,16 +728,19 @@ function stopScanner(){
   const video = document.getElementById('scanner-video');
   if(video) video.srcObject = null;
   document.getElementById('scanner-panel').classList.remove('show');
+  document.getElementById('scanner-btn').textContent = '📷 Scanner';
+  const status = document.getElementById('scanner-status');
+  if(status) status.textContent = 'Câmera fechada.';
 }
 
-/* Decodifica via BarcodeDetector nativo (Chrome/Android) com fallback jsQR (Safari/iOS e demais) */
+/* Decodifica via BarcodeDetector nativo (Chrome/Edge/Android) com fallback jsQR (Safari/iOS e demais) */
 async function decodeQRSource(source){
   if('BarcodeDetector' in window){
     try{
       const det = new BarcodeDetector({formats:['qr_code']});
       const codes = await det.detect(source);
-      if(codes && codes.length) return codes[0].rawValue || null;
-    }catch(e){ /* segue para o fallback */ }
+      if(codes?.length) return codes[0].rawValue || null;
+    }catch(e){ console.warn('BarcodeDetector:', e); }
   }
   if(typeof window.jsQR === 'function'){
     try{
@@ -771,7 +756,7 @@ async function decodeQRSource(source){
       const data = ctx.getImageData(0, 0, w, h);
       const result = window.jsQR(data.data, w, h, {inversionAttempts:'attemptBoth'});
       return result?.data || null;
-    }catch(e){ /* nada encontrado neste frame */ }
+    }catch(e){ console.warn('jsQR:', e); }
   }
   return null;
 }
@@ -797,11 +782,13 @@ async function scanLoop(){
   if(!scannerStream) return;
   const raw = await detectQR();
   if(raw){
-    scannerStatus('QR Code identificado!');
+    const status = document.getElementById('scanner-status');
+    if(status) status.textContent = 'QR Code identificado!';
     handleQR(raw);
     return;
   }
-  scannerStatus('Leitor ativo — procurando QR Code...');
+  const status = document.getElementById('scanner-status');
+  if(status) status.textContent = 'Leitor ativo — procurando QR Code...';
   setTimeout(scanLoop, 250);
 }
 
@@ -811,6 +798,7 @@ function handleQR(raw){
   const sku = digitsOnly ? digitsOnly.padStart(7,'0') : String(raw||'').trim();
   const p = productsBySku[sku];
 
+  // Fecha somente a câmera. O botão Scanner fica pronto para a próxima leitura.
   stopScanner();
   document.getElementById('search-input').value = sku;
   produtosLimite = 24;
@@ -818,9 +806,11 @@ function handleQR(raw){
 
   if(!p){
     toast(`⚠️ Produto ${sku} não encontrado`);
+    document.getElementById('search-input').focus();
     return;
   }
 
+  // Aguarda a renderização do card filtrado e leva o usuário diretamente ao produto.
   requestAnimationFrame(()=>{
     const card = document.getElementById('product-'+sku);
     if(card){

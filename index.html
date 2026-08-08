@@ -63,6 +63,15 @@
     font-size:12.5px;padding:7px 12px;border-radius:20px;cursor:pointer;
   }
   .novo-btn:hover{background:var(--gold-dark);}
+  .header-actions{display:flex;align-items:center;gap:8px;}
+  .sync-btn{
+    background:rgba(255,255,255,.15);color:#fff;border:none;
+    width:32px;height:32px;border-radius:50%;font-size:15px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .sync-btn:hover{background:rgba(255,255,255,.28);}
+  .sync-btn.spinning{animation:spin .8s linear infinite;}
+  @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
   .header-cart{
     display:flex;justify-content:space-between;align-items:center;
     margin-top:10px;background:rgba(255,255,255,.12);border-radius:10px;
@@ -261,7 +270,10 @@
           <p>Bloco de Pedido · Feira ABUP</p>
         </div>
       </div>
-      <button class="novo-btn" onclick="novoPedido()">+ Novo</button>
+      <div class="header-actions">
+        <button class="sync-btn" id="sync-btn" onclick="sincronizarApp()" title="Buscar a versão mais recente">🔄</button>
+        <button class="novo-btn" onclick="novoPedido()">+ Novo</button>
+      </div>
     </div>
     <div class="header-cart">
       <span id="header-count">0 itens</span>
@@ -447,7 +459,7 @@
 ===================================================== */
 const EMPRESA = {
   nome: "Zionne",
-  evento: "PEDIDO DE VENDA - FEIRA ABUP SHOW HOME - 2-5 FEVEREIRO/2026",
+  evento: "PEDIDO DE VENDA - FEIRA ABUP SHOW HOME - 10 a 14 AGOSTO/2026",
   instagram: "@zionne.oficial",
   telefone: "(41) 3043-0595",
   site: "zionne.com.br",
@@ -1335,6 +1347,7 @@ function exportPDF(pedido = pedidoGerado){
     pdf.setPage(i);
     const h = pdf.internal.pageSize.getHeight();
     pdf.setFontSize(8); pdf.setFont('helvetica','normal');
+    pdf.text(`Empresa: ${EMPRESA.nome}`, pageWidth/2, h-20, {align:'center'});
     pdf.text(`Instagram: ${EMPRESA.instagram}`, pageWidth/2, h-16, {align:'center'});
     pdf.text(`Telefone / WhatsApp: ${EMPRESA.telefone}`, pageWidth/2, h-12, {align:'center'});
     pdf.text(`Site: ${EMPRESA.site} | E-mail: ${EMPRESA.email}`, pageWidth/2, h-8, {align:'center'});
@@ -1419,6 +1432,29 @@ function novoPedido(){
 renderProdutos();
 updateHeader();
 carregarCatalogoRemoto();
+
+/* Força buscar a versão mais recente do catálogo e da própria página,
+   ignorando qualquer cache do navegador/CDN do GitHub Pages. */
+async function sincronizarApp(){
+  const btn = document.getElementById('sync-btn');
+  btn.classList.add('spinning');
+  btn.disabled = true;
+  toast('Sincronizando com o GitHub...');
+
+  try{
+    await carregarCatalogoRemoto();
+  }catch(e){
+    // carregarCatalogoRemoto já trata seus próprios erros internamente
+  }
+
+  toast('Catálogo atualizado! Recarregando a página...');
+
+  setTimeout(()=>{
+    const url = new URL(window.location.href.split('#')[0].split('?')[0]);
+    url.searchParams.set('sync', Date.now());
+    window.location.replace(url.toString());
+  }, 700);
+}
 </script>
 </body>
 </html>
